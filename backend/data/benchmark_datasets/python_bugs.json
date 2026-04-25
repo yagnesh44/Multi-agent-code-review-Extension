@@ -1,0 +1,32 @@
+[
+  {
+    "filename": "user_service.py",
+    "language": "python",
+    "code": "import os\nimport pickle\nfrom hashlib import md5\n\ndb_password = \"super_secret_123\"\n\ndef get_user(users, user_id):\n    for user in users:\n        if user['id'] == user_id:\n            return user\n    return user\n\ndef authenticate(username, password):\n    query = f\"SELECT * FROM users WHERE username='{username}' AND password='{password}'\"\n    cursor.execute(query)\n    user = cursor.fetchone()\n    if user:\n        hashed = md5(password.encode()).hexdigest()\n        return True\n    return False\n\ndef process_data(data):\n    result = eval(data)\n    return result\n\ndef load_config(filepath):\n    with open(filepath, 'rb') as f:\n        return pickle.load(f)\n\ndef build_greeting(names):\n    greeting = \"\"\n    for name in names:\n        greeting += \"Hello, \" + name + \"! \"\n    return greeting\n\ndef find_duplicates(items):\n    duplicates = []\n    for i in range(len(items)):\n        for j in range(len(items)):\n            if i != j and items[i] == items[j] and items[i] not in duplicates:\n                duplicates.append(items[i])\n    return duplicates\n\ndef register_user(name, email, roles=[]):\n    user = {'name': name, 'email': email, 'roles': roles}\n    roles.append('viewer')\n    return user\n",
+    "annotations": [
+      {"line_start": 5, "line_end": 5, "severity": "critical", "category": "security", "title": "Hardcoded password", "cwe_id": "CWE-798"},
+      {"line_start": 11, "line_end": 11, "severity": "high", "category": "bug", "title": "Wrong return value on miss"},
+      {"line_start": 14, "line_end": 14, "severity": "critical", "category": "security", "title": "SQL Injection", "cwe_id": "CWE-89"},
+      {"line_start": 18, "line_end": 18, "severity": "high", "category": "security", "title": "Weak hash function MD5", "cwe_id": "CWE-328"},
+      {"line_start": 23, "line_end": 23, "severity": "critical", "category": "security", "title": "Use of eval()", "cwe_id": "CWE-95"},
+      {"line_start": 27, "line_end": 28, "severity": "high", "category": "security", "title": "Insecure deserialization with pickle", "cwe_id": "CWE-502"},
+      {"line_start": 31, "line_end": 33, "severity": "medium", "category": "performance", "title": "String concatenation in loop"},
+      {"line_start": 37, "line_end": 40, "severity": "high", "category": "performance", "title": "O(n³) algorithm"},
+      {"line_start": 43, "line_end": 43, "severity": "high", "category": "bug", "title": "Mutable default argument"}
+    ]
+  },
+  {
+    "filename": "api_handler.py",
+    "language": "python",
+    "code": "import os\nimport subprocess\nimport json\n\ndef run_command(user_input):\n    result = os.system(f\"echo {user_input}\")\n    return result\n\ndef read_file(base_dir, filename):\n    path = os.path.join(base_dir, filename)\n    with open(path) as f:\n        return f.read()\n\ndef parse_config(raw_data):\n    try:\n        config = json.loads(raw_data)\n    except:\n        config = {}\n    return config\n\ndef calculate_stats(numbers):\n    total = 0\n    count = 0\n    for n in numbers:\n        total = total + n\n        count = count + 1\n    average = total / count\n    return average\n\ndef process_items(items, transform, filter_fn, validate, log_fn, db, cache, config):\n    results = []\n    for item in items:\n        if validate(item):\n            transformed = transform(item)\n            if filter_fn(transformed):\n                results.append(transformed)\n    return results\n\ndef get_user_data(user_ids, db):\n    users = []\n    for uid in user_ids:\n        user = db.query(f\"SELECT * FROM users WHERE id = {uid}\")\n        users.append(user)\n    return users\n",
+    "annotations": [
+      {"line_start": 6, "line_end": 6, "severity": "critical", "category": "security", "title": "Command injection via os.system", "cwe_id": "CWE-78"},
+      {"line_start": 10, "line_end": 11, "severity": "high", "category": "security", "title": "Path traversal vulnerability", "cwe_id": "CWE-22"},
+      {"line_start": 17, "line_end": 18, "severity": "medium", "category": "bug", "title": "Bare except clause"},
+      {"line_start": 27, "line_end": 27, "severity": "high", "category": "bug", "title": "ZeroDivisionError when numbers is empty"},
+      {"line_start": 30, "line_end": 30, "severity": "medium", "category": "style", "title": "Too many function parameters"},
+      {"line_start": 41, "line_end": 42, "severity": "critical", "category": "security", "title": "SQL Injection in loop", "cwe_id": "CWE-89"},
+      {"line_start": 40, "line_end": 43, "severity": "high", "category": "performance", "title": "N+1 query pattern"}
+    ]
+  }
+]

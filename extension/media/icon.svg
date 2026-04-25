@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f3460;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#533483;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="256" height="256" rx="32" fill="url(#bg)"/>
+  <!-- Code bracket left -->
+  <text x="30" y="160" font-family="monospace" font-size="120" font-weight="bold" fill="#e94560" opacity="0.9">{</text>
+  <!-- Checkmark -->
+  <path d="M105 140 L125 160 L165 110" stroke="#53cf7e" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Code bracket right -->
+  <text x="170" y="160" font-family="monospace" font-size="120" font-weight="bold" fill="#e94560" opacity="0.9">}</text>
+  <!-- AI dots -->
+  <circle cx="88" cy="60" r="6" fill="#0f3460" opacity="0.7"/>
+  <circle cx="128" cy="48" r="8" fill="#533483" opacity="0.8"/>
+  <circle cx="168" cy="60" r="6" fill="#0f3460" opacity="0.7"/>
+  <!-- Bottom text -->
+  <text x="128" y="220" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="bold" fill="#e0e0e0">AI REVIEW</text>
+</svg>

@@ -1,0 +1,160 @@
+{
+  "name": "ai-code-review-agent",
+  "displayName": "AI Code Review Agent",
+  "description": "Multi-agent AI-powered code review using open-source LLMs — bugs, security, performance, and style analysis directly in VS Code",
+  "version": "1.0.0",
+  "publisher": "JaiMehta04",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JaiMehta04/CodeReviewAgent"
+  },
+  "homepage": "https://github.com/JaiMehta04/CodeReviewAgent#readme",
+  "bugs": {
+    "url": "https://github.com/JaiMehta04/CodeReviewAgent/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "code review",
+    "AI",
+    "LLM",
+    "security",
+    "bugs",
+    "linter",
+    "static analysis",
+    "open source",
+    "groq",
+    "ollama"
+  ],
+  "icon": "media/icon.png",
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeReviewAgent.reviewFile",
+        "title": "AI Review: Review Current File",
+        "icon": "$(search-fuzzy)"
+      },
+      {
+        "command": "codeReviewAgent.reviewSelection",
+        "title": "AI Review: Review Selection"
+      },
+      {
+        "command": "codeReviewAgent.reviewGitChanges",
+        "title": "AI Review: Review Git Changes",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "codeReviewAgent.showDashboard",
+        "title": "AI Review: Show Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "codeReviewAgent.runBenchmark",
+        "title": "AI Review: Run Benchmark"
+      },
+      {
+        "command": "codeReviewAgent.clearDiagnostics",
+        "title": "AI Review: Clear All Findings"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codeReviewAgent.reviewFile",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeReviewAgent.reviewSelection",
+        "key": "ctrl+shift+alt+r",
+        "mac": "cmd+shift+alt+r",
+        "when": "editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codeReviewAgent.reviewFile",
+          "group": "codeReview@1"
+        },
+        {
+          "command": "codeReviewAgent.reviewSelection",
+          "group": "codeReview@2",
+          "when": "editorHasSelection"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "codeReviewAgent.reviewFile",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AI Code Review Agent",
+      "properties": {
+        "codeReviewAgent.backendUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:19280",
+          "description": "URL of the Code Review Agent backend server"
+        },
+        "codeReviewAgent.autoReviewOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically review files on save"
+        },
+        "codeReviewAgent.agents": {
+          "type": "array",
+          "default": [
+            "bug_detector",
+            "security_analyzer",
+            "performance_reviewer",
+            "style_checker"
+          ],
+          "description": "Which review agents to run",
+          "items": {
+            "type": "string",
+            "enum": [
+              "bug_detector",
+              "security_analyzer",
+              "performance_reviewer",
+              "style_checker"
+            ]
+          }
+        },
+        "codeReviewAgent.minSeverity": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+            "info"
+          ],
+          "description": "Minimum severity level to show in diagnostics"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
