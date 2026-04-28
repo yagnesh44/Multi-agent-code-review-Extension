@@ -5,9 +5,12 @@ code = open(filepath).read()
 r = httpx.post(
     "http://127.0.0.1:19280/api/review",
     json={"code": code, "filename": filepath.split("\\")[-1], "language": "python"},
-    timeout=180,
+    timeout=900,
 )
 d = r.json()
+if "findings" not in d:
+    print("Error response:", d)
+    sys.exit(1)
 for f in d["findings"]:
     agent = f["agent"]
     sev = f["severity"]

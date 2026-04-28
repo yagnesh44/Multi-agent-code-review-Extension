@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # Agent Configuration
     concurrent_agents: int = 4
-    agent_timeout_seconds: int = 120
+    agent_timeout_seconds: int = 600
     consensus_threshold: float = 0.6  # Min agreement ratio for findings
 
     # RAG Configuration

@@ -29,10 +29,10 @@ logger = logging.getLogger(__name__)
 PROVIDERS = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
-        "default_model": "llama-3.3-70b-versatile",
+        "default_model": "llama-3.1-8b-instant",
         "models": [
-            "llama-3.3-70b-versatile",
             "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
             "mixtral-8x7b-32768",
             "gemma2-9b-it",
         ],
@@ -74,18 +74,36 @@ def _is_transient(exc: Exception) -> bool:
     return any(p in msg for p in _RETRYABLE_PHRASES)
 
 
-async def _retry_async(coro_factory, *, retries: int = 3, base_delay: float = 3.0, label: str = ""):
+# Module-level shared cooldown: when a 429 is hit, ALL requests wait
+_rate_limit_until: float = 0.0
+
+
+async def _retry_async(coro_factory, *, retries: int = 6, base_delay: float = 5.0, label: str = ""):
+    global _rate_limit_until
     last_exc: Exception | None = None
     for attempt in range(1, retries + 1):
+        # Respect shared cooldown from any previous 429
+        import time as _time
+        now = _time.monotonic()
+        if _rate_limit_until > now:
+            wait = _rate_limit_until - now
+            logger.info("%s waiting %.1fs for shared rate-limit cooldown", label, wait)
+            await asyncio.sleep(wait)
         try:
             return await coro_factory()
         except Exception as exc:
             last_exc = exc
             if attempt < retries and _is_transient(exc):
                 msg = str(exc).lower()
-                # Rate limits need longer backoff
                 if "429" in msg or "rate limit" in msg:
-                    delay = base_delay * (3 ** (attempt - 1))  # 3s, 9s, 27s
+                    # Try to parse retry-after from error message
+                    import re as _re
+                    ra_match = _re.search(r"retry-after=(\d+\.?\d*)", str(exc))
+                    if ra_match:
+                        delay = float(ra_match.group(1)) + 2.0  # add buffer
+                    else:
+                        delay = 60.0
+                    _rate_limit_until = _time.monotonic() + delay
                 else:
                     delay = base_delay * (2 ** (attempt - 1))
                 logger.warning("%s attempt %d/%d failed (%s), retrying in %.1fs…", label, attempt, retries, exc, delay)
@@ -207,11 +225,17 @@ class OpenAICompatibleClient:
                 json=payload,
                 timeout=self._timeout,
             )
+            if resp.status_code == 429:
+                # Extract Retry-After if present
+                retry_after = resp.headers.get("retry-after")
+                body = resp.text[:200]
+                msg = f"429 Too Many Requests (retry-after={retry_after}, body={body})"
+                raise httpx.HTTPStatusError(msg, request=resp.request, response=resp)
             resp.raise_for_status()
             data = resp.json()
             return data["choices"][0]["message"]["content"] or ""
 
-        return await _retry_async(_call, retries=3, label=f"generate({self._provider}/{model})")
+        return await _retry_async(_call, retries=6, label=f"generate({self._provider}/{model})")
 
     async def generate_json(
         self,
