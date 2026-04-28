@@ -120,48 +120,28 @@ class Orchestrator:
             agents = [a for a in self._agents if a.name in agent_names]
 
         # ── 5. Run LLM agents (staggered to respect rate limits) ─────────
-        _rate_delay = 20.0  # seconds between agent starts to avoid 429s
+        _rate_delay = 5.0  # seconds between agent starts to avoid 429s
 
-        # For large files with chunking, run agents sequentially to stay
-        # within rate limits. For small files, run concurrently.
-        is_large_file = loc > 500
+        # Run agents concurrently — the shared rate-limit cooldown in
+        # _retry_async coordinates all requests to stay within TPM limits.
+        sem = asyncio.Semaphore(settings.concurrent_agents)
 
-        if is_large_file:
+        async def _run_agent(agent: BaseReviewAgent, index: int) -> list[ReviewFinding]:
+            if index > 0:
+                await asyncio.sleep(index * _rate_delay)
+            async with sem:
+                return await agent.review(code, request.filename, language, rag_context)
+
+        tasks = [_run_agent(agent, i) for i, agent in enumerate(agents)]
+        try:
+            agent_results = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=settings.agent_timeout_seconds * len(agents),
+            )
+        except asyncio.TimeoutError:
+            logger.error("Overall agent fan-out timed out")
             agent_results = []
-            for i, agent in enumerate(agents):
-                if i > 0:
-                    await asyncio.sleep(_rate_delay)
-                try:
-                    result = await asyncio.wait_for(
-                        agent.review(code, request.filename, language, rag_context),
-                        timeout=settings.agent_timeout_seconds + 60,
-                    )
-                    agent_results.append(result)
-                except asyncio.TimeoutError:
-                    logger.error("Agent %s timed out", agent.name)
-                    agent_results.append(TimeoutError(f"{agent.name} timed out"))
-                except Exception as exc:
-                    logger.error("Agent %s raised: %s", agent.name, exc)
-                    agent_results.append(exc)
-        else:
-            sem = asyncio.Semaphore(settings.concurrent_agents)
-
-            async def _run_agent(agent: BaseReviewAgent, index: int) -> list[ReviewFinding]:
-                if index > 0:
-                    await asyncio.sleep(index * _rate_delay)
-                async with sem:
-                    return await agent.review(code, request.filename, language, rag_context)
-
-            tasks = [_run_agent(agent, i) for i, agent in enumerate(agents)]
-            try:
-                agent_results = await asyncio.wait_for(
-                    asyncio.gather(*tasks, return_exceptions=True),
-                    timeout=settings.agent_timeout_seconds + 30,
-                )
-            except asyncio.TimeoutError:
-                logger.error("Overall agent fan-out timed out")
-                agent_results = []
-                failed_agents = [a.name for a in agents]
+            failed_agents = [a.name for a in agents]
 
         llm_findings: list[ReviewFinding] = []
         agents_used = []

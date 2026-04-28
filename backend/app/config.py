@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     embedding_model: str = "all-MiniLM-L6-v2"  # sentence-transformers (runs locally)
 
     # LLM Parameters
-    max_tokens: int = 4096
+    max_tokens: int = 2048
     temperature: float = 0.1
     top_p: float = 0.95
     repeat_penalty: float = 1.1

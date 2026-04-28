@@ -113,7 +113,7 @@ async def review_code(request: ReviewRequest):
         try:
             return await asyncio.wait_for(
                 orchestrator.review(request),
-                timeout=settings.agent_timeout_seconds + 60,
+                timeout=settings.agent_timeout_seconds * 5,
             )
         except asyncio.TimeoutError:
             raise HTTPException(status_code=504, detail="Review timed out. Try a smaller file or fewer agents.")

@@ -47,8 +47,8 @@ class BaseReviewAgent(ABC):
         to stay within LLM token limits, then merges results.
         """
         lines = code.split("\n")
-        max_chunk_lines = 200
-        overlap = 20  # overlap between chunks to avoid missing boundary issues
+        max_chunk_lines = 100
+        overlap = 10  # overlap between chunks to avoid missing boundary issues
 
         if len(lines) <= max_chunk_lines + overlap:
             self._had_error = False
@@ -65,9 +65,9 @@ class BaseReviewAgent(ABC):
             chunk_lines = lines[chunk_start:chunk_end]
             chunk_code = "\n".join(chunk_lines)
 
-            # Wait between chunks to let rate limits recover
+            # Small pause between chunks; main throttling is in the LLM semaphore
             if chunk_idx > 0:
-                await asyncio.sleep(15.0)
+                await asyncio.sleep(2.0)
 
             findings = await self._review_chunk(
                 chunk_code, filename, language, rag_context,

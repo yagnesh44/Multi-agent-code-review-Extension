@@ -63,7 +63,7 @@ PROVIDERS = {
 }
 
 # Fatal errors — never retry
-_FATAL_PHRASES = ("402", "payment required", "401", "unauthorized", "403", "forbidden", "invalid api key", "invalid_api_key")
+_FATAL_PHRASES = ("402", "payment required", "401", "unauthorized", "403", "forbidden", "invalid api key", "invalid_api_key", "413", "payload too large")
 _RETRYABLE_PHRASES = ("429", "rate limit", "503", "502", "500", "overloaded", "timeout", "connection")
 
 
@@ -77,39 +77,62 @@ def _is_transient(exc: Exception) -> bool:
 # Module-level shared cooldown: when a 429 is hit, ALL requests wait
 _rate_limit_until: float = 0.0
 
+# Global semaphore: only ONE API call at a time to avoid 429 stampedes
+_api_semaphore: asyncio.Semaphore | None = None
 
-async def _retry_async(coro_factory, *, retries: int = 6, base_delay: float = 5.0, label: str = ""):
+
+def _get_api_semaphore() -> asyncio.Semaphore:
+    """Lazy-init semaphore (must be created inside a running event loop)."""
+    global _api_semaphore
+    if _api_semaphore is None:
+        _api_semaphore = asyncio.Semaphore(1)
+    return _api_semaphore
+
+
+async def _retry_async(coro_factory, *, retries: int = 10, base_delay: float = 5.0, label: str = ""):
     global _rate_limit_until
     last_exc: Exception | None = None
+    sem = _get_api_semaphore()
     for attempt in range(1, retries + 1):
-        # Respect shared cooldown from any previous 429
-        import time as _time
-        now = _time.monotonic()
-        if _rate_limit_until > now:
-            wait = _rate_limit_until - now
-            logger.info("%s waiting %.1fs for shared rate-limit cooldown", label, wait)
-            await asyncio.sleep(wait)
-        try:
-            return await coro_factory()
-        except Exception as exc:
-            last_exc = exc
-            if attempt < retries and _is_transient(exc):
-                msg = str(exc).lower()
-                if "429" in msg or "rate limit" in msg:
-                    # Try to parse retry-after from error message
-                    import re as _re
-                    ra_match = _re.search(r"retry-after=(\d+\.?\d*)", str(exc))
-                    if ra_match:
-                        delay = float(ra_match.group(1)) + 2.0  # add buffer
+        async with sem:
+            # Respect shared cooldown from any previous 429
+            import time as _time
+            now = _time.monotonic()
+            if _rate_limit_until > now:
+                wait = _rate_limit_until - now
+                logger.info("%s waiting %.1fs for shared rate-limit cooldown", label, wait)
+                await asyncio.sleep(wait)
+            try:
+                result = await coro_factory()
+                # Proactive throttle: ~2000 tokens/request vs 6000 TPM → 20s gap
+                import time as _time2
+                _rate_limit_until = max(_rate_limit_until, _time2.monotonic() + 20.0)
+                return result
+            except Exception as exc:
+                last_exc = exc
+                if attempt < retries and _is_transient(exc):
+                    msg = str(exc).lower()
+                    if "429" in msg or "rate limit" in msg:
+                        # Try to parse retry-after from error message
+                        import re as _re
+                        ra_match = _re.search(r"retry-after=(\d+\.?\d*)", str(exc))
+                        if ra_match:
+                            delay = float(ra_match.group(1)) + 2.0  # add buffer
+                        else:
+                            delay = 60.0
+                        _rate_limit_until = _time.monotonic() + delay
                     else:
-                        delay = 60.0
-                    _rate_limit_until = _time.monotonic() + delay
+                        delay = base_delay * (2 ** (attempt - 1))
+                    logger.warning("%s attempt %d/%d failed (%s), retrying in %.1fs…", label, attempt, retries, exc, delay)
+                    # Release semaphore before sleeping so other requests can proceed
+                    # (sleep happens outside the `async with sem` block below)
                 else:
-                    delay = base_delay * (2 ** (attempt - 1))
-                logger.warning("%s attempt %d/%d failed (%s), retrying in %.1fs…", label, attempt, retries, exc, delay)
-                await asyncio.sleep(delay)
-            else:
-                raise
+                    raise
+        # Sleep OUTSIDE the semaphore so others can use it during our wait
+        if last_exc is not None and attempt < retries:
+            await asyncio.sleep(delay)  # type: ignore[possibly-undefined]
+            last_exc = None  # reset for next iteration
+            continue
     raise last_exc  # type: ignore[misc]
 
 
@@ -235,7 +258,7 @@ class OpenAICompatibleClient:
             data = resp.json()
             return data["choices"][0]["message"]["content"] or ""
 
-        return await _retry_async(_call, retries=6, label=f"generate({self._provider}/{model})")
+        return await _retry_async(_call, retries=10, label=f"generate({self._provider}/{model})")
 
     async def generate_json(
         self,

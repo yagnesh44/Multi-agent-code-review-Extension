@@ -5,7 +5,7 @@ code = open(filepath).read()
 r = httpx.post(
     "http://127.0.0.1:19280/api/review",
     json={"code": code, "filename": filepath.split("\\")[-1], "language": "python"},
-    timeout=900,
+    timeout=3600,
 )
 d = r.json()
 if "findings" not in d:
