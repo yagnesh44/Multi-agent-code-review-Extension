@@ -9,6 +9,7 @@ import * as vscode from "vscode";
 import { BackendClient, ReviewResponse, ReviewFinding } from "./backendClient";
 import { ReviewPanel } from "./reviewPanel";
 import { DashboardPanel } from "./dashboardPanel";
+import { ProgressPanel } from "./progressPanel";
 
 let client: BackendClient;
 let diagnosticCollection: vscode.DiagnosticCollection;
@@ -196,6 +197,10 @@ async function performReview(
   statusBarItem.text = "$(loading~spin) Reviewing…";
   statusBarItem.tooltip = "AI Code Review in progress…";
 
+  // Open the live progress panel immediately
+  const linesOfCode = code.split("\n").length;
+  const progressPanel = ProgressPanel.createOrShow(context.extensionUri, filename, linesOfCode);
+
   try {
     const response = await vscode.window.withProgress(
       {
@@ -204,7 +209,7 @@ async function performReview(
         cancellable: true,
       },
       async (progress, token) => {
-        progress.report({ message: "Sending code to review agents…" });
+        progress.report({ message: "Agents are analyzing your code…" });
 
         // Wrap in a promise that rejects on cancellation
         return new Promise<ReviewResponse>((resolve, reject) => {
@@ -220,6 +225,9 @@ async function performReview(
     );
 
     lastReviewResponse = response;
+
+    // Transition the progress panel to show results
+    progressPanel.showResults(response);
 
     // Update diagnostics
     const uri = vscode.Uri.file(filename);
@@ -260,6 +268,11 @@ async function performReview(
   } catch (err: any) {
     statusBarItem.text = "$(error) AI Review Failed";
     const message = err.message || String(err);
+
+    // Notify progress panel about the error
+    if (progressPanel) {
+      progressPanel.showError(message);
+    }
 
     if (message.includes("cancelled")) {
       statusBarItem.text = "$(search-fuzzy) AI Review";

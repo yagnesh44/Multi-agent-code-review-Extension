@@ -92,7 +92,7 @@ export interface BenchmarkResult {
 
 // ── Client ──────────────────────────────────────────────────────────────────
 
-const DEFAULT_TIMEOUT_MS = 180_000; // 3 minutes for review calls
+const DEFAULT_TIMEOUT_MS = 3_600_000; // 60 minutes for review calls (large files with rate-limited APIs)
 const HEALTH_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 2_000;
