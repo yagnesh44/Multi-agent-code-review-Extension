@@ -81,7 +81,7 @@ class PythonASTAnalyzer:
 
     def _collect_metrics(self, tree: ast.AST, metrics: ASTMetrics):
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 metrics.functions.append({
                     "name": node.name,
                     "line": node.lineno,
@@ -95,7 +95,7 @@ class PythonASTAnalyzer:
                     "line": node.lineno,
                     "methods": sum(
                         1 for n in node.body
-                        if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef)
+                        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
                     ),
                 })
                 metrics.class_count += 1
@@ -160,7 +160,7 @@ class PythonASTAnalyzer:
         issues = []
         mutable_types = (ast.List, ast.Dict, ast.Set)
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for default in node.args.defaults + node.args.kw_defaults:
                     if isinstance(default, mutable_types):
                         issues.append(ASTIssue(
@@ -247,7 +247,7 @@ class PythonASTAnalyzer:
     def _check_too_many_arguments(self, tree: ast.AST, threshold: int = 6) -> list[ASTIssue]:
         issues = []
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 args = node.args
                 count = len(args.args) + len(args.kwonlyargs)
                 # Subtract 'self'/'cls'
@@ -268,7 +268,7 @@ class PythonASTAnalyzer:
     def _check_nested_depth(self, tree: ast.AST, threshold: int = 4) -> list[ASTIssue]:
         issues = []
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 depth = self._compute_max_nesting(node)
                 if depth > threshold:
                     issues.append(ASTIssue(
